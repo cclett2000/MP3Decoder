@@ -7,6 +7,8 @@ namespace MP3Decoder.decode.m4a.file
     internal class M4AFileHandler
     {
         static int BLOCK_SIZE_LENGTH = 4;
+        static int BLOCK_HEAD_LENGTH = 4;
+
 
         private int pos = 0;
         private string m4aFilePath = "";
@@ -24,7 +26,7 @@ namespace MP3Decoder.decode.m4a.file
             byte[] data = File.ReadAllBytes(m4aFilePath);
 
             // ensure file is .m4a
-            validateFileType(data);
+            int nextBlockPos = validateFileType(data);
         }
 
         /// <summary>
@@ -37,16 +39,20 @@ namespace MP3Decoder.decode.m4a.file
         private int validateFileType(byte[] data)
         {
             int size = 0;
-            while (pos < BLOCK_SIZE_LENGTH)
+            foreach (uint byteItem in data[pos..BLOCK_SIZE_LENGTH]) 
             {
-                size += Convert.ToInt32(data[pos]);
-                pos++;
+                size += (int) byteItem;
             }
-            
 
-            return size;
+            pos = BLOCK_SIZE_LENGTH;
+
+            string parsedHead = Encoding.UTF8.GetString(data[pos..(pos + (BLOCK_HEAD_LENGTH * 2))]);
+            if (parsedHead != "ftypM4A ")
+            {
+                throw new InvalidDataException();
+            }
+
+            return pos = size;
         }
-
-
     }
 }

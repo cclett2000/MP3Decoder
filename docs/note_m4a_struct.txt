@@ -1,0 +1,13 @@
+** FILE MUST BE VIEWED USING BIG ENDIAN...no wonder ImHex wasn't matching up with the documentation **
+- Box Structure/Atom Layout
+	> MPEG4 files are a collection of 'boxes', think of key-values in a JSON file.
+	> first 4 bytes of each block: 32bit uInt (big endian)
+	
+- Block Structure
+	> The first 4 bytes of each block indicate size of the entire block; size
+	  can be used for knowing where pointer should be placed
+		> [block size][block header][block payload/data]
+		
+	> Example Block:
+		> 00 00 00 18 66 74 79 70 4D 34 41 20 00 00 02 00 69 73 6F 6D 69 73 6F 32
+		  [size     ] [header   ] [payload/data                                 ]
