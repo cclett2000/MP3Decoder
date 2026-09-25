@@ -4,7 +4,7 @@ namespace MP3Decoder.decode.mp3
 {
     internal class BasicDecoder : DecoderInterface
     {
-        public static void decode()
+        public static void Decode()
         {
             throw new NotImplementedException();
         }

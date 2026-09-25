@@ -1,58 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Text;
 
 namespace MP3Decoder.decode.m4a.file
 {
-    internal class M4AFileHandler
+    internal class M4AFileHandler(string m4aFilePath)
     {
         static int BLOCK_SIZE_LENGTH = 4;
         static int BLOCK_HEAD_LENGTH = 4;
 
+        private byte[] data = [];
+        private int bytePosition = 0;
+        private string m4aFilePath = m4aFilePath;
 
-        private int pos = 0;
-        private string m4aFilePath = "";
+        BlockContainer blockContainer;
 
-        public M4AFileHandler(string m4aFilePath)
-        {
-            this.m4aFilePath = m4aFilePath;
-        }
-
-        // TODO: Look into a data structure (stack?) that allows quicker pruning of
-        //       already touched bytes
-        public void loadInMemory()
+        public void LoadInMemory()
         {
             // load file into mem using stream
-            byte[] data = File.ReadAllBytes(m4aFilePath);
+            data = File.ReadAllBytes(m4aFilePath);
 
-            // ensure file is .m4a
-            int nextBlockPos = validateFileType(data);
+            ValidateFileType();
+            ParseBlocks();
+
+            // GC, do your thing
+            data = [];
+        }
+
+        private void ParseBlocks()
+        {
+            while (bytePosition < data.Length)
+            {
+                Block tempBlock = new Block();
+                int[] blockRange = CalculateBlockSize();
+                //TODO: store block range using...well blockRange
+                
+
+            }
         }
 
         /// <summary>
-        /// 
+        /// Calculates the size of the next block in the M4A byte array.
         /// </summary>
-        /// 
-        /// <returns>
-        /// position in byte stream where the next box begins
-        /// </returns>
-        private int validateFileType(byte[] data)
+        /// <returns>the range, start and end position, of the next block</returns>
+        private int[] CalculateBlockSize()
         {
             int size = 0;
-            foreach (uint byteItem in data[pos..BLOCK_SIZE_LENGTH]) 
+            foreach (uint byteItem in data[bytePosition..BLOCK_SIZE_LENGTH])
             {
-                size += (int) byteItem;
+                size += (int)byteItem;
             }
 
-            pos = BLOCK_SIZE_LENGTH;
+            // ensure our position is updated properly
+            return [(bytePosition + 4), size];
+        }
 
-            string parsedHead = Encoding.UTF8.GetString(data[pos..(pos + (BLOCK_HEAD_LENGTH * 2))]);
-            if (parsedHead != "ftypM4A ")
+        /// <param name="data"></param>
+        /// <returns></returns>
+        private int ValidateFileType()
+        {            
+            if (Encoding.UTF8.GetString(data[BLOCK_SIZE_LENGTH..(BLOCK_SIZE_LENGTH + (BLOCK_HEAD_LENGTH * 2))]) != "ftypM4A ")
             {
-                throw new InvalidDataException();
+                // do something else
+                Environment.Exit(500);
             }
 
-            return pos = size;
+            return bytePosition = CalculateBlockSize()[1];
+        }
+
+        public void setBlockContainer(BlockContainer blockContainer)
+        {
+            this.blockContainer = blockContainer;
         }
     }
 }

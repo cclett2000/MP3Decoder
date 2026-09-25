@@ -7,6 +7,6 @@ namespace MP3Decoder.decode
     interface DecoderInterface
     {
         // TODO: Figure out req args
-        abstract static void decode();
+        abstract static void Decode();
     }
 }
