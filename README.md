@@ -8,3 +8,6 @@ to get this up and running with a modicum of success!
 
 - https://www.developerfusion.com/article/62/build-an-mp3-player/3/
 > Absolute life saver!
+
+- https://developer.apple.com/documentation/quicktime-file-format
+> Official Apple Doc - QuickTime file format; MPEG-4 was derived from (I think)
