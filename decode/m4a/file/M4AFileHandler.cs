@@ -34,6 +34,14 @@ namespace MP3Decoder.decode.m4a.file
 
         private void ParseAtoms()
         {
+            bool isContainer = false;
+            int containerEnd = -1;
+
+            Atom containerAtom = new Atom
+            {
+                IsContainer = true
+            };
+
             while (bytePosition < data.Length)
             {
                 (int atomStart, int atomEnd) = CalculateAtomSizeUsingGlobalIndex();
@@ -43,33 +51,62 @@ namespace MP3Decoder.decode.m4a.file
                     data[atomStart..headEnd]
                 );
 
-                // TODO: implement children atom logic (ex. 'moov')
-                if (false || ATOMS_WITH_CHILDREN.Contains(atomHead))
+                // TODO: Fix how child atoms are parse, possible decouple from global index
+                if (ATOMS_WITH_CHILDREN.Contains(atomHead))
                 {
+                    isContainer = true;
+                    containerEnd = atomEnd;
+                    containerAtom.Header = atomHead;
+                } 
+                else if (isContainer && bytePosition <= containerEnd) 
+                {
+                    containerAtom.Children.addBlock(
+                        atomHead,
+                        new Atom
+                        {
+                            Header = atomHead,
+                            Payload = data[atomStart..atomEnd],
+                            Size = headEnd - atomStart
+                        }
+                    );
                 }
                 else
                 {
-                    Atom atom = new Atom();
-                    atom.header = atomHead;
-                    atom.payload = data[atomStart..headEnd];
-                    atom.size = headEnd - atomStart;
+                    isContainer = false;
+                    containerEnd = -1;
+                    containerAtom = new Atom
+                    {
+                        IsContainer = true
+                    };
 
                     atomContainer.addBlock(
                         atomHead,
-                        atom
+                        new Atom
+                        {
+                            Header = atomHead,
+                            Payload = data[atomStart..atomEnd],
+                            Size = headEnd - atomStart
+                        }
                     );
                 }
             }
         }
 
-        private void ParseChildAtoms()
+        private void ParseChildAtoms(string atomHead, byte[] payload)
         {
+            Atom atom = new Atom
+            {
+                IsContainer = true,
+                Header = atomHead
+            };
+
 
         }
 
         /// <summary>
         /// Calculates the size of the next block in the M4A byte array.
         /// </summary>
+        /// 
         /// <returns>
         /// The start and end position of the current block
         /// (The starting index DOES NOT include the 4 byte size segment)
@@ -82,7 +119,9 @@ namespace MP3Decoder.decode.m4a.file
                 true
             );
 
+
             bytePosition += atomEnd;
+
             return (atomStart, bytePosition);
         }
 

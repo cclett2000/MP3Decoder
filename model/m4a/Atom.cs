@@ -1,11 +1,22 @@
 ﻿public struct Atom
 {
-    // flag(s)
-    internal bool isContainer {  get; set; }
+    private bool _isContainer;
+    public bool IsContainer {
+        get { return _isContainer; }
+        set 
+        {
+            if (value == true)
+            {
+                Children = new AtomContainer();
+            }
 
-    // var(s)
-    internal int size { get; set; }
-    internal string header { get; set; }
-    internal byte[] payload { get; set; }
-    internal AtomContainer children { get; set; }
+            _isContainer = value;
+        }
+        
+    }
+
+    public int Size { get; set; }
+    public string Header { get; set; }
+    public byte[] Payload { get; set; }
+    public AtomContainer Children { get; set; }
 }
