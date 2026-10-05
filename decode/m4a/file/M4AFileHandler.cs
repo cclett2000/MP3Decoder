@@ -22,85 +22,87 @@ namespace MP3Decoder.decode.m4a.file
 
         public void LoadInMemory()
         {
-            // load file into mem using stream
             data = File.ReadAllBytes(m4aFilePath);
 
             ValidateFileType();
             ParseAtoms();
 
-            // GC, do your thing
             data = [];
         }
 
-        private void ParseAtoms()
+        private void ParseAtoms(int atomContainerEnd = -1, string parentAtom = "")
         {
-            bool isContainer = false;
-            int containerEnd = -1;
+            int containerEnd = atomContainerEnd == -1 ? data.Length : atomContainerEnd;
 
-            Atom containerAtom = new Atom
+            while (bytePosition < containerEnd)
             {
-                IsContainer = true
-            };
+                (int atomStart, int atomEnd) = CalculateAtomStartEndPosition();
+                int atomSize = atomEnd - atomStart;
 
-            while (bytePosition < data.Length)
-            {
-                (int atomStart, int atomEnd) = CalculateAtomSizeUsingGlobalIndex();
+                if (atomSize == 0)
+                {
+                    continue;
+                }
 
-                int headEnd = atomStart + ATOM_HEAD_SEGMENT_LENGTH;
-                string atomHead = ByteHelper.getStringValueFromByteArray(
-                    data[atomStart..headEnd]
+                int atomTypeSize = atomStart + ATOM_HEAD_SEGMENT_LENGTH;
+                string atomType = ByteHelper.getStringValueFromByteArray(
+                    data[atomStart..atomTypeSize]
                 );
 
-                // TODO: Fix how child atoms are parse, possible decouple from global index
-                if (ATOMS_WITH_CHILDREN.Contains(atomHead))
+                if (ATOMS_WITH_CHILDREN.Contains(atomType) || parentAtom != "")
                 {
-                    isContainer = true;
-                    containerEnd = atomEnd;
-                    containerAtom.Header = atomHead;
-                } 
-                else if (isContainer && bytePosition <= containerEnd) 
-                {
-                    containerAtom.Children.addBlock(
-                        atomHead,
-                        new Atom
-                        {
-                            Header = atomHead,
-                            Payload = data[atomStart..atomEnd],
-                            Size = headEnd - atomStart
-                        }
-                    );
+                    // (first iteration) Initialize atom and recursion
+                    if (!atomContainer.doesExist(atomType) && parentAtom == "")
+                    {
+                        atomContainer.addAtom(atomType, 
+                            new Atom {
+                                Header = atomType,
+                                Size = atomSize,
+                                IsContainer = true
+                            }
+                        );
+
+                        bytePosition += ATOM_SIZE_SEGMENT_LENGTH + ATOM_HEAD_SEGMENT_LENGTH;
+                        ParseAtoms(atomEnd, atomType);
+
+                        atomContainerEnd = -1;
+                        parentAtom = "";
+                    }
+
+                    // (subseqeunt iteration) add children to existing atom
+                    else
+                    {
+                        Atom atom = atomContainer.getAtomByName(parentAtom);
+                        atom.Children.addAtom(
+                            atomType,
+                            new Atom {
+                                Header = atomType,
+                                Size = atomSize,
+                                Payload = data[atomStart..atomEnd]
+                            }
+                        );
+
+                        bytePosition += atomSize + ATOM_HEAD_SEGMENT_LENGTH;
+                    }
+
+                    // if exist, 
                 }
                 else
                 {
-                    isContainer = false;
-                    containerEnd = -1;
-                    containerAtom = new Atom
-                    {
-                        IsContainer = true
-                    };
-
-                    atomContainer.addBlock(
-                        atomHead,
+                    atomContainer.addAtom(
+                        atomType,
                         new Atom
                         {
-                            Header = atomHead,
+                            Header = atomType,
                             Payload = data[atomStart..atomEnd],
-                            Size = headEnd - atomStart
+                            Size = atomSize
                         }
                     );
+
+                    // update global position
+                    bytePosition = atomEnd;
                 }
             }
-        }
-
-        private void ParseChildAtoms(string atomHead, byte[] payload)
-        {
-            Atom atom = new Atom
-            {
-                IsContainer = true,
-                Header = atomHead
-            };
-
-
         }
 
         /// <summary>
@@ -111,7 +113,7 @@ namespace MP3Decoder.decode.m4a.file
         /// The start and end position of the current block
         /// (The starting index DOES NOT include the 4 byte size segment)
         /// </returns>
-        private (int, int) CalculateAtomSizeUsingGlobalIndex()
+        private (int, int) CalculateAtomStartEndPosition()
         {
             int atomStart = bytePosition + ATOM_SIZE_SEGMENT_LENGTH;
             int atomEnd = ByteHelper.calculateIntegerFromByteArray(
@@ -119,10 +121,7 @@ namespace MP3Decoder.decode.m4a.file
                 true
             );
 
-
-            bytePosition += atomEnd;
-
-            return (atomStart, bytePosition);
+            return (atomStart, (bytePosition + atomEnd));
         }
 
         private void ValidateFileType()
