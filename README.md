@@ -6,8 +6,15 @@ to get this up and running with a modicum of success!
 
 ## References
 
-- https://www.developerfusion.com/article/62/build-an-mp3-player/3/
-> Absolute life saver!
+Absolute life saver!
+> https://www.developerfusion.com/article/62/build-an-mp3-player/3/
 
-- https://developer.apple.com/documentation/quicktime-file-format
-> Official Apple Doc - QuickTime file format; MPEG-4 was derived from (I think)
+<hr>
+
+Official Apple Doc - QuickTime file format; MPEG-4 was derived from (I think)
+> https://developer.apple.com/documentation/quicktime-file-format
+
+<hr>
+
+Cool repo with an overview on MPEG4 file structure
+> https://github.com/alfg/quick-dive-into-mp4
