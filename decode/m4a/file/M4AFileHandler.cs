@@ -10,9 +10,6 @@ namespace MP3Decoder.decode.m4a.file
     {
         static readonly int ATOM_SIZE_SEGMENT_LENGTH = 4;
         static readonly int ATOM_HEAD_SEGMENT_LENGTH = 4;
-        static readonly HashSet<string> ATOMS_WITH_CHILDREN = new HashSet<string> { 
-            "moov" 
-        };
 
         private byte[] data = [];
         private int bytePosition = 0;
@@ -25,15 +22,14 @@ namespace MP3Decoder.decode.m4a.file
             data = File.ReadAllBytes(m4aFilePath);
 
             ValidateFileType();
-            ParseAtoms();
+            ByteToAtomConverter(new Atom());
 
             data = [];
         }
 
-        private void ParseAtoms(int atomContainerEnd = -1, string parentAtom = "")
-        {
+        private void ByteToAtomConverter(Atom atom, int atomContainerEnd = -1, bool processForChild = false) {
             int containerEnd = atomContainerEnd == -1 ? data.Length : atomContainerEnd;
-
+      
             while (bytePosition < containerEnd)
             {
                 (int atomStart, int atomEnd) = CalculateAtomStartEndPosition();
@@ -49,58 +45,71 @@ namespace MP3Decoder.decode.m4a.file
                     data[atomStart..atomTypeSize]
                 );
 
-                if (ATOMS_WITH_CHILDREN.Contains(atomType) || parentAtom != "")
+                if (Atom.isAtomIgnored(atomType))
                 {
-                    // (first iteration) Initialize atom and recursion
-                    if (!atomContainer.doesExist(atomType) && parentAtom == "")
+                    bytePosition += ATOM_SIZE_SEGMENT_LENGTH + atomSize;
+                    continue;
+                }
+
+                // initialize parent atom as container, begin recursive call
+                if (Atom.isContainerAtom(atomType))
+                {
+                    bytePosition += ATOM_SIZE_SEGMENT_LENGTH + ATOM_HEAD_SEGMENT_LENGTH;
+
+                    if (processForChild)
                     {
-                        atomContainer.addAtom(atomType, 
-                            new Atom {
-                                Header = atomType,
-                                Size = atomSize,
-                                IsContainer = true
-                            }
-                        );
+                        Atom childAtom = new Atom { 
+                            Header = atomType,
+                            IsContainer = true,
+                            Size = atomSize
+                        };
 
-                        bytePosition += ATOM_SIZE_SEGMENT_LENGTH + ATOM_HEAD_SEGMENT_LENGTH;
-                        ParseAtoms(atomEnd, atomType);
-
+                        ByteToAtomConverter(childAtom, atomEnd, true);
+                        atom.Container.addAtom(atomType, childAtom);
                         atomContainerEnd = -1;
-                        parentAtom = "";
                     }
-
-                    // (subseqeunt iteration) add children to existing atom
                     else
                     {
-                        Atom atom = atomContainer.getAtomByName(parentAtom);
-                        atom.Children.addAtom(
-                            atomType,
-                            new Atom {
-                                Header = atomType,
-                                Size = atomSize,
-                                Payload = data[atomStart..atomEnd]
-                            }
-                        );
+                        atom.Header = atomType;
+                        atom.IsContainer = true;
+                        atom.Size = atomSize;
 
-                        bytePosition += atomSize + ATOM_HEAD_SEGMENT_LENGTH;
+                        ByteToAtomConverter(atom, atomEnd, true);
+                        this.atomContainer.addAtom(atomType, atom);
+                        atomContainerEnd = -1;
                     }
+                } 
 
-                    // if exist, 
-                }
-                else
+                // We're within a recursive call, all atoms should be stored in parent
+                else if (processForChild)
                 {
-                    atomContainer.addAtom(
+                    atom.Container.addAtom(
                         atomType,
                         new Atom
                         {
                             Header = atomType,
-                            Payload = data[atomStart..atomEnd],
-                            Size = atomSize
+                            Size = atomSize,
+                            Payload = data[atomStart..atomEnd]
                         }
                     );
 
-                    // update global position
-                    bytePosition = atomEnd;
+                    bytePosition += ATOM_SIZE_SEGMENT_LENGTH + atomSize;
+                }
+
+                // Top-most level atom, no recursion -- watch this bug out lmao
+                else
+                {
+                    atom.Header = atomType;
+                    atom.IsContainer = true;
+                    atom.Size = atomSize;
+                    atom.Payload = data[atomStart..atomEnd];
+
+                    this.atomContainer.addAtom(atomType, atom);
+
+                    // ensure lingering data isn't present
+                    atom = new Atom();
+
+                    bytePosition += ATOM_SIZE_SEGMENT_LENGTH + atomSize;
                 }
             }
         }
