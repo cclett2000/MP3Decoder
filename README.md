@@ -1,4 +1,5 @@
-# MP3Decoder...I should really rename this as this more than just MP3 lol
+# MP3Decoder
+>...I should really rename this as this more than just MP3 lol
 
 This repository will contain my work on understanding and parsing MP3 audio files. I understand there are existing packages
 and algorithms to achieve this with much better results than what I can manage, however, I think it would be really cool
